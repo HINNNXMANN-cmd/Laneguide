@@ -2,76 +2,119 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lane Guide">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#ffffff">
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Lane Guide</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
-:root{--bg:#0b1220;--card:#141d30;--ink:#eef3ff;--mute:#8da0c4;--hi:#2bd48a;--neutral:#3a4764;--warn:#ffb020;--bad:#ff5d5d}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px -apple-system,system-ui,sans-serif;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);-webkit-user-select:none;user-select:none}
-.top{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:16px;padding:14px;margin-top:10px}
-.big{font-size:34px;font-weight:700;min-width:96px}
-.instr{font-size:18px;line-height:1.3}
-.road{color:var(--mute);font-size:13px;margin-top:2px}
-.map{height:120px;margin-top:10px;border-radius:16px;background:linear-gradient(#10192c,#0d1526);position:relative;overflow:hidden}
-.map svg{width:100%;height:100%}
-.map.live{height:260px}.map.live svg{display:none}
-#lmap{position:absolute;inset:0;display:none;background:#0d1526}
-.map.live #lmap{display:block}
-.leaflet-container{font:12px system-ui}
-.status{color:var(--mute);font-size:13px;line-height:1.4}
+:root{--ink:#1f2937;--mute:#6b7280;--blue:#1a73e8;--green:#12b76a;--card:#fff;--line:#e5e7eb;--dark:#14213a;--warn:#f59e0b;--bad:#dc2626}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#e8eaed;font:16px -apple-system,system-ui,sans-serif;color:var(--ink);-webkit-user-select:none;user-select:none}
+#map{position:fixed;inset:0;z-index:0}
+.leaflet-container{font:12px system-ui;background:#e8eaed}
+.hide{display:none!important}
+/* search */
+#topbar{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 8px);z-index:20}
+#sform{display:flex;align-items:center;background:var(--card);border-radius:28px;box-shadow:0 2px 10px rgba(0,0,0,.25);padding:4px 6px}
+#sform button{border:0;background:none;font-size:22px;width:42px;height:42px;color:var(--mute)}
+#q{flex:1;border:0;outline:0;font-size:17px;background:none;color:var(--ink);padding:10px 4px;-webkit-user-select:text;user-select:text;min-width:0}
+#results{background:var(--card);border-radius:16px;margin-top:8px;box-shadow:0 2px 10px rgba(0,0,0,.25);max-height:55vh;overflow:auto}
+.r{padding:12px 16px;border-bottom:1px solid var(--line)}
+.r:last-child{border:0}.r b{display:block;font-size:16px}.r small{color:var(--mute);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r.muted{color:var(--mute)}
+/* locate */
+#locate{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 190px);z-index:15;width:50px;height:50px;border-radius:50%;border:0;background:var(--card);box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:24px;color:var(--blue)}
+body.nav #locate{bottom:calc(env(safe-area-inset-bottom) + 100px)}
+/* bottom sheet */
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-radius:20px 20px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.25);padding:16px 16px calc(env(safe-area-inset-bottom) + 16px)}
+#sname{font-size:20px;font-weight:700}#ssub{color:var(--mute);font-size:14px;margin-top:2px;max-height:38px;overflow:hidden}
+#sinfo{margin-top:8px;font-size:18px}#sinfo b{color:var(--green)}
+#sstatus{color:var(--mute);font-size:14px;margin-top:6px;min-height:18px}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{border:0;border-radius:24px;padding:12px 20px;font-size:16px;font-weight:600;background:#eef2f7;color:var(--ink)}
+.btn.p{background:var(--blue);color:#fff}.btn.g{background:var(--green);color:#fff}.btn.d{background:var(--bad);color:#fff}
+/* navigation */
+#banner{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 8px);z-index:20;background:var(--dark);color:#fff;border-radius:18px;padding:12px 14px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+#barrow svg{width:54px;height:62px}
+#bdist{font-size:30px;font-weight:800;line-height:1}
+#btext{font-size:17px;margin-top:4px}#broad{font-size:13px;opacity:.7;margin-top:2px}
+#lanepanel{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 100px);z-index:19;background:var(--dark);border-radius:16px;padding:10px 8px 8px;box-shadow:0 2px 12px rgba(0,0,0,.4);margin-top:6px}
+#lanes{display:flex;gap:5px;justify-content:center}
+.lane{flex:1;max-width:76px;border-radius:9px;background:#2a3a5c;padding:6px 2px 4px;text-align:center;border:2px solid transparent}
+.lane.rec{background:#0e4a35;border-color:var(--green)}
+.lane svg{width:38px;height:46px}
+.lane small{display:block;font-size:10px;color:#9fb0d3}.lane.rec small{color:#7ef0b8}
+#lanemeta{color:#c8d4ee;font-size:13px;text-align:center;margin-top:6px}
+#navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-radius:20px 20px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.25);padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);display:flex;align-items:center;gap:14px}
+#navbar .c{flex:1}#navbar .big{font-size:22px;font-weight:700}#navbar small{color:var(--mute);display:block}
+/* menu */
+#menu{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+#menu .box{background:var(--card);width:100%;max-height:85vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px)}
+#menu h3{margin:14px 0 8px;font-size:15px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+#menu .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+select{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;background:#fff;color:var(--ink)}
 progress{width:100%}
-.panel{background:var(--card);border-radius:16px;margin-top:10px;padding:12px;min-height:150px}
-.panel.hidden .lanes{opacity:.25}
-.lanes{display:flex;gap:6px;justify-content:center;transition:opacity .3s}
-.lane{flex:1;max-width:84px;border-radius:10px;background:var(--neutral);padding:8px 2px 6px;text-align:center;border:2px solid transparent}
-.lane.rec{background:#0f3a2b;border-color:var(--hi)}
-.lane.cur{box-shadow:0 0 0 3px var(--warn) inset}
-.lane svg{width:44px;height:52px}
-.lane small{display:block;font-size:11px;color:var(--mute)}
-.lane.rec small{color:var(--hi)}
-.badge{display:inline-block;background:#1f2c49;border-radius:8px;padding:3px 8px;font-size:13px;margin:6px 6px 0 0}
-.note{margin-top:8px;font-size:14px;color:var(--warn)}
-.ctrl{background:var(--card);border-radius:16px;margin:10px 0;padding:12px;display:grid;gap:10px}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-button,select{background:#22305280;color:var(--ink);border:1px solid #33456f;border-radius:10px;padding:10px 14px;font-size:15px}
-button.primary{background:var(--hi);color:#04170f;border:0;font-weight:700}
-input[type=range]{flex:1}
-.foot{color:var(--mute);font-size:12px;padding-bottom:20px}
+.status{color:var(--mute);font-size:13px;line-height:1.4}
+.me{width:22px;height:22px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)}
+.pin{width:26px;height:26px;border-radius:50% 50% 50% 0;background:var(--bad);transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5);margin:-26px 0 0 -13px}
 </style>
 </head>
 <body>
-<div class="top"><div class="big" id="dist">--</div><div><div class="instr" id="instr">Press Start drive</div><div class="road" id="road"></div></div></div>
-<div class="map" id="mapbox"><svg viewBox="0 0 400 120" id="mapsvg"></svg><div id="lmap"></div></div>
-<div class="panel hidden" id="panel"><div class="lanes" id="lanes"></div><div id="info"></div><div class="note" id="note"></div></div>
-<div class="ctrl">
-  <div class="row"><b>Mode</b><select id="mode"><option value="demo">Demo drive</option><option value="live">Live GPS + map</option></select></div>
-  <div class="status" id="gpsstatus"></div>
+<div id="map"></div>
+
+<div id="topbar">
+  <form id="sform" autocomplete="off">
+    <button type="button" id="menubtn" aria-label="Menu">☰</button>
+    <input id="q" type="search" placeholder="Search places in the UAE" enterkeyhint="search" autocapitalize="off" autocorrect="off">
+    <button type="submit" aria-label="Search">⌕</button>
+  </form>
+  <div id="results" class="hide"></div>
 </div>
-<div class="ctrl" id="offlinebox">
-  <div class="row"><b>Offline map</b></div>
+
+<div id="banner" class="hide"><div id="barrow"></div><div style="min-width:0"><div id="bdist">--</div><div id="btext"></div><div id="broad"></div></div></div>
+<div id="lanepanel" class="hide"><div id="lanes"></div><div id="lanemeta"></div></div>
+
+<button id="locate" aria-label="My location">◎</button>
+
+<div id="sheet" class="hide">
+  <div id="sname"></div><div id="ssub"></div><div id="sinfo"></div><div id="sstatus"></div>
+  <div class="btns"><button class="btn p" id="bdir">Directions</button><button class="btn g hide" id="bstart">Start</button><button class="btn hide" id="bsave">Save map along route</button><button class="btn" id="bclose">Close</button></div>
+</div>
+
+<div id="navbar" class="hide">
+  <div class="c"><div class="big" id="eta">--</div><small>arrival</small></div>
+  <div class="c"><div class="big" id="rem">--</div><small>remaining</small></div>
+  <div class="c"><div class="big" id="spd">--</div><small>km/h</small></div>
+  <button class="btn d" id="bend">End</button>
+</div>
+
+<div id="menu" class="hide"><div class="box">
+  <div class="row"><b style="font-size:20px;flex:1">Lane Guide</b><button class="btn" id="mclose">Done</button></div>
+  <h3>Voice</h3>
+  <div class="row"><button class="btn" id="voice">Voice: on</button>
+    <select id="lang"><option value="en">English</option><option value="ar">العربية</option></select></div>
+  <h3>Offline maps</h3>
+  <div class="status">Saved maps work with no internet. When you pick a route, tap “Save map along route” to save just that drive. Or save a whole area:</div>
   <div class="row"><select id="area"><option value="view">Current map view</option><option value="dubai">Dubai</option><option value="abudhabi">Abu Dhabi city</option><option value="sharjah">Sharjah + Ajman</option><option value="alain">Al Ain</option></select>
     <select id="detail"><option value="12">Overview (zoom 8–12)</option><option value="14">Detailed (zoom 8–14)</option></select></div>
-  <div class="row"><button id="dl">Save area for offline</button><button id="dlcancel" style="display:none">Cancel</button></div>
-  <progress id="dlbar" value="0" max="1" style="display:none"></progress>
-  <div class="status" id="dlstatus">Open Live GPS mode while online, then save the areas you drive in. Saved maps work with no internet.</div>
-</div>
-<div class="ctrl" id="democtrl">
-  <div class="row"><button class="primary" id="start">Start drive</button><button id="reset">Reset</button>
-    <select id="lang"><option value="en">English</option><option value="ar">العربية</option></select>
-    <button id="voice">Voice: on</button></div>
-  <div class="row">Speed <input type="range" id="spd" min="30" max="130" value="90"><span id="spdv">90 km/h</span></div>
-  <div class="row">My lane <select id="mylane"></select>
-    <label><input type="checkbox" id="noise"> GPS noise</label></div>
-</div>
-<div class="foot">Demo with sample road data. Lane guidance is computed on-device with no internet. Real map data import comes next.</div>
+  <div class="row"><button class="btn p" id="dl">Save area</button><button class="btn hide" id="dlcancel">Cancel</button></div>
+  <progress id="dlbar" value="0" max="1" class="hide"></progress>
+  <div class="status" id="dlstatus"></div>
+  <h3>Test lane guidance without driving</h3>
+  <div class="row"><button class="btn g" id="demo">Start demo drive</button></div>
+  <div class="row">Speed <input type="range" id="dspd" min="30" max="130" value="90" style="flex:1"><span id="dspdv">90 km/h</span></div>
+  <div class="row"><label><input type="checkbox" id="noise"> Add GPS noise</label></div>
+  <h3>Data</h3>
+  <div class="row"><button class="btn" id="clearrec">Clear recent places</button></div>
+  <div class="status" id="gpsstatus"></div>
+  <div class="status" style="margin-top:10px">Search and routing need internet (free OpenStreetMap services). A route you have already calculated keeps working offline with live GPS, and saved map areas still show. Lane guidance uses lane data from OpenStreetMap, and shows turn guidance only when a road has none.</div>
+</div></div>
 
 <script>/* Lane guidance engine (offline, no network). UMD: works in browser and Node. */
 (function (root, factory) {
@@ -108,6 +151,11 @@ input[type=range]{flex:1}
   // Lanes that support the route manoeuvre. Returns null if no usable lane data.
   function recommendedLanes(segment, maneuver) {
     if (!segment || !segment.lanes || !segment.lanes.length) return null;
+    // Route-aware data (e.g. from the routing engine) marks lanes valid for the route directly.
+    if (segment.lanes.some(l => typeof l.valid === 'boolean')) {
+      const v = segment.lanes.filter(l => l.valid).map(l => l.index);
+      return v.length && v.length < segment.lanes.length ? v : null; // all/none valid = nothing useful to say
+    }
     const want = maneuver === 'exit_right' || maneuver === 'exit_left' ? [maneuver, maneuver.replace('exit_', '')] : [maneuver];
     const hit = segment.lanes.filter(l => l.turns.some(t => want.includes(t) || (maneuver.startsWith('exit') && t === 'exit')));
     return hit.length ? hit.map(l => l.index) : null;
@@ -170,7 +218,7 @@ input[type=range]{flex:1}
     en: {
       dist: d => d >= 1000 ? (d / 1000).toFixed(1).replace('.0', '') + ' kilometres' : Math.round(d / 50) * 50 + ' metres',
       mv: { left: 'turn left', right: 'turn right', through: 'continue straight', exit_right: 'take the exit on the right', exit_left: 'take the exit on the left',
-            slight_left: 'bear left', slight_right: 'bear right', uturn: 'make a U-turn', merge: 'merge', split: 'follow the split' },
+            slight_left: 'bear left', slight_right: 'bear right', uturn: 'make a U-turn', merge: 'merge', split: 'follow the split', roundabout: 'take the roundabout' },
       where: w => ({ any: 'any lane', leftmost: 'the left lane', rightmost: 'the right lane', lane: 'lane ' + w.n,
         left_n: w.n === 1 ? 'the left lane' : 'either of the ' + w.n + ' left lanes', right_n: w.n === 1 ? 'the right lane' : 'either of the ' + w.n + ' right lanes',
         lanes_list: 'lanes ' + (w.list || []).join(' or ') }[w.key]),
@@ -184,7 +232,7 @@ input[type=range]{flex:1}
     ar: {
       dist: d => d >= 1000 ? (d / 1000).toFixed(1) + ' كيلومتر' : Math.round(d / 50) * 50 + ' متر',
       mv: { left: 'انعطف يساراً', right: 'انعطف يميناً', through: 'تابع مباشرة', exit_right: 'اخرج من المخرج الأيمن', exit_left: 'اخرج من المخرج الأيسر',
-            slight_left: 'ميل قليلاً لليسار', slight_right: 'ميل قليلاً لليمين', uturn: 'استدر للخلف', merge: 'اندمج', split: 'اتبع التفرع' },
+            slight_left: 'ميل قليلاً لليسار', slight_right: 'ميل قليلاً لليمين', uturn: 'استدر للخلف', merge: 'اندمج', split: 'اتبع التفرع', roundabout: 'ادخل الدوار' },
       where: w => ({ any: 'أي مسار', leftmost: 'المسار الأيسر', rightmost: 'المسار الأيمن', lane: 'المسار ' + w.n,
         left_n: w.n === 1 ? 'المسار الأيسر' : 'أحد المسارين الأيسرين', right_n: w.n === 1 ? 'المسار الأيمن' : 'أحد المسارين الأيمنين',
         lanes_list: 'المسارات ' + (w.list || []).join(' أو ') }[w.key]),
@@ -254,195 +302,432 @@ input[type=range]{flex:1}
     return { segmentMinutes: seg != null ? seg : null, laneSpeeds: lane || null, laneSpecific: !!lane };
   }
 
-  return { MOVES, parseOsmTurnLanes, recommendedLanes, warningDistance, lanesToCross, buildGuidance, laneWords,
+  /* ---------- Routing-engine (OSRM) helpers ---------- */
+  const IND = { 'none': 'through', 'straight': 'through', 'slight right': 'slight_right', 'right': 'right', 'sharp right': 'right',
+    'slight left': 'slight_left', 'left': 'left', 'sharp left': 'left', 'uturn': 'uturn' };
+
+  // OSRM intersection.lanes -> lane objects (leftmost = index 0). null when the data has no lanes.
+  function lanesFromOsrm(inter) {
+    if (!inter || !Array.isArray(inter.lanes) || !inter.lanes.length) return null;
+    return inter.lanes.map((l, i) => ({
+      index: i, turns: Array.from(new Set((l.indications && l.indications.length ? l.indications : ['none']).map(x => IND[x] || 'through'))),
+      valid: !!l.valid, restrictions: [], changeLeft: true, changeRight: true
+    }));
+  }
+
+  function maneuverFromOsrm(m) {
+    const t = m.type, mod = m.modifier || '';
+    if (t === 'arrive') return 'arrive';
+    if (t === 'depart') return 'depart';
+    if (['roundabout', 'rotary', 'roundabout turn', 'exit roundabout', 'exit rotary'].includes(t)) return 'roundabout';
+    if (t === 'off ramp') return mod.includes('left') ? 'exit_left' : 'exit_right';
+    if (t === 'merge') return 'merge';
+    if (t === 'on ramp' || t === 'fork') return mod.includes('left') ? 'slight_left' : mod.includes('right') ? 'slight_right' : 'through';
+    switch (mod) {
+      case 'left': case 'sharp left': return 'left';
+      case 'right': case 'sharp right': return 'right';
+      case 'slight left': return 'slight_left';
+      case 'slight right': return 'slight_right';
+      case 'uturn': return 'uturn';
+      default: return 'through';
+    }
+  }
+
+  function describeStep(step, lang, capitalise) {
+    const P = PHRASES[lang] || PHRASES.en;
+    const mv = maneuverFromOsrm(step.maneuver);
+    let s;
+    if (mv === 'arrive') s = lang === 'ar' ? 'لقد وصلت إلى وجهتك' : 'you have arrived';
+    else if (mv === 'depart') s = lang === 'ar' ? 'ابدأ القيادة' : 'head out';
+    else if (mv === 'roundabout') s = P.roundabout(step.maneuver.exit || 1).replace(/\.$/, '');
+    else s = P.mv[mv] || P.mv.through;
+    if (step.name && !['arrive', 'roundabout'].includes(mv)) s += ' ' + P.thenRoad(step.name);
+    return capitalise ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  /* ---------- Geometry / map matching ---------- */
+  function hav(a, b) {
+    const R = 6371000, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+  function prepareRoute(latlngs) {
+    const cum = [0];
+    for (let i = 1; i < latlngs.length; i++) cum.push(cum[i - 1] + hav(latlngs[i - 1], latlngs[i]));
+    return { pts: latlngs, cum, total: cum[cum.length - 1] };
+  }
+  // Nearest point on the route. Searches forward from startIdx (window points) so parallel roads behind/ahead don't capture us.
+  function snapToRoute(route, p, startIdx, win) {
+    const pts = route.pts, n = pts.length - 2;
+    if (n < 0) return null;
+    const s0 = startIdx || 0, lo = Math.max(0, s0 - 2), hi = win == null ? n : Math.min(n, s0 + win);
+    const k = Math.cos(p[0] * Math.PI / 180) * 111320;
+    let best = null;
+    for (let i = lo; i <= hi; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const ax = (a[1] - p[1]) * k, ay = (a[0] - p[0]) * 111320, bx = (b[1] - p[1]) * k, by = (b[0] - p[0]) * 111320;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+      let t = L2 ? -(ax * dx + ay * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(ax + t * dx, ay + t * dy);
+      if (!best || d < best.dist) best = { idx: i, t, dist: d, along: route.cum[i] + t * (route.cum[i + 1] - route.cum[i]) };
+    }
+    return best;
+  }
+  // Distance (m) along the route at which each step's manoeuvre happens.
+  function stepStarts(steps, routeTotal) {
+    const starts = []; let acc = 0;
+    steps.forEach(s => { starts.push(acc); acc += s.distance || 0; });
+    const k = acc > 0 ? routeTotal / acc : 1;
+    return starts.map(x => x * k);
+  }
+
+  return { lanesFromOsrm, maneuverFromOsrm, describeStep, hav, prepareRoute, snapToRoute, stepStarts, MOVES, parseOsmTurnLanes, recommendedLanes, warningDistance, lanesToCross, buildGuidance, laneWords,
     instruction, roundaboutGuidance, makeAnnouncer, stageFor, makeStabilizer, trafficInfo, PHRASES };
 });
 </script>
 <script>
-const E = LaneEngine;
-// Sample offline road database (demo). Real data comes from the OSM import pipeline.
-const ROUTE = [
-  { id:'A1', name:'Sheikh Zayed Rd', len:3000, maneuver:'exit_right', segment:{ id:'A1', confidence:.9, source:'demo', updated:'2026-10-10',
-      lanes:E.parseOsmTurnLanes('through|through|through;exit_right|exit_right',4), exitInfo:{ number:'12', destination:'Airport', nextRoad:'Airport Rd' } }, next:'Airport Rd' },
-  { id:'R1', name:'Airport Rd', len:1500, maneuver:'roundabout', exitNumber:3, segment:{ id:'R1', confidence:.8, source:'demo', updated:'2026-10-10',
-      lanes:[{index:0,turns:['left','through'],restrictions:[]},{index:1,turns:['through'],restrictions:[]},{index:2,turns:['through','right'],restrictions:[]}], roundabout:{exits:[{n:1},{n:2},{n:3}]} }, next:'Terminal 3' },
-  { id:'S1', name:'Terminal 3 Access', len:1200, maneuver:'right', segment:{ id:'S1', lanes:null, confidence:.3, source:'demo' }, next:'Parking' }
-];
+'use strict';
+const E = LaneEngine, $ = id => document.getElementById(id);
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', CACHE = 'laneguide-v3';
+const AREAS = { dubai:[24.80,54.95,25.40,55.65], abudhabi:[24.30,54.25,24.60,54.80], sharjah:[25.20,55.30,25.50,55.65], alain:[24.05,55.60,24.35,55.95] };
+const cfg = { lang: ls.get('lang', 'en'), voice: ls.get('voice', true) };
+const S = { pos:null, dest:null, route:null, R:null, steps:null, starts:null, nav:false, follow:true, sim:false, simTimer:null, simS:0,
+  lastIdx:0, along:0, off:0, stepIdx:-1, stab:null, v:14, rerouting:false, lastReroute:0, watch:null };
+const announce = E.makeAnnouncer(5000);
+
+if (!window.L) {
+  document.body.insertAdjacentHTML('afterbegin', '<div style="position:fixed;inset:0;z-index:99;background:#fff;padding:30px;font-size:18px">The map library is not saved on this phone yet. Open the app once with internet, then it will work offline.</div>');
+  throw new Error('Leaflet missing');
+}
+
+/* ---------- map ---------- */
+const map = L.map('map', { zoomControl:false }).setView([25.2048, 55.2708], 11);
+L.tileLayer(TILE, { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map);
+const meMarker = L.marker([25.2048, 55.2708], { icon:L.divIcon({ className:'', html:'<div class="me"></div>', iconSize:[22,22], iconAnchor:[11,11] }), interactive:false, zIndexOffset:1000 });
+const accCircle = L.circle([25.2048, 55.2708], { radius:0, color:'#1a73e8', weight:1, fillOpacity:.1, interactive:false });
+let destMarker = null, routeCasing = null, routeLine = null;
+map.on('dragstart', () => { S.follow = false; });
+
+/* ---------- helpers ---------- */
+const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : (m < 50 ? Math.round(m / 5) * 5 : Math.round(m / 10) * 10) + ' m';
+const fmtMin = s => { const m = Math.round(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : Math.max(1, m) + ' min'; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const ARROW = {
   through:'M22 48V14M14 22l8-10 8 10', left:'M26 48V30Q26 22 18 22H10M16 14l-8 8 8 8', right:'M18 48V30Q18 22 26 22H34M28 14l8 8-8 8',
   slight_left:'M24 48V30L14 14M12 24l2-10 10 2', slight_right:'M20 48V30L30 14M32 24l-2-10-10 2', exit_right:'M16 48V32L34 16M34 28V16H22',
   exit_left:'M28 48V32L10 16M10 28V16h12', uturn:'M32 48V20Q32 12 24 12T16 20v8M10 22l6 8 6-8', merge:'M10 48L22 28M34 48L22 28M22 28V12', split:'M22 48V30M22 30L10 14M22 30L34 14'
 };
-const $ = id => document.getElementById(id);
-const S = { i:0, pos:0, running:false, lane:3, last:0, timer:null, voice:true };
-const announce = E.makeAnnouncer(6000), stab = E.makeStabilizer(3);
-for (let i=0;i<4;i++){ const o=document.createElement('option'); o.value=i; o.textContent='Lane '+(i+1); if(i===3)o.selected=true; $('mylane').appendChild(o); }
-$('mylane').onchange = () => S.lane = +$('mylane').value;
-$('spd').oninput = () => $('spdv').textContent = $('spd').value + ' km/h';
-$('voice').onclick = () => { S.voice = !S.voice; $('voice').textContent = 'Voice: ' + (S.voice?'on':'off'); };
-$('lang').onchange = () => { document.documentElement.dir = $('lang').value==='ar'?'rtl':'ltr'; };
+const arrowSvg = (turns, col, w) => '<svg viewBox="0 0 44 52" fill="none" stroke="' + col + '" stroke-width="' + (w || 4) + '" stroke-linecap="round" stroke-linejoin="round">' +
+  turns.map(t => '<path d="' + (ARROW[t] || ARROW.through) + '"/>').join('') + '</svg>';
 
-function speak(t){
-  if(!S.voice || !('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(t); u.lang = $('lang').value==='ar'?'ar-SA':'en-GB';
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+function speak(t) {
+  if (!cfg.voice || !('speechSynthesis' in window) || !t) return;
+  try { const u = new SpeechSynthesisUtterance(t); u.lang = cfg.lang === 'ar' ? 'ar-SA' : 'en-GB'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
 }
-function laneSvg(turns, rec){
-  const col = rec ? '#2bd48a' : '#9fb0d3';
-  return '<svg viewBox="0 0 44 52" fill="none" stroke="'+col+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">'+
-    turns.map(t => '<path d="'+(ARROW[t]||ARROW.through)+'"/>').join('')+'</svg>';
-}
-function drawLanes(g, shown, cur){
-  const L = $('lanes'); L.innerHTML='';
-  if(!g.hasLanes){ L.innerHTML='<div style="color:#8da0c4;text-align:center;padding:30px 0">No lane data for this road. Showing turn guidance only.</div>'; return; }
-  g.lanes.forEach(l=>{
-    const rec = shown.includes(l.index);
-    const d = document.createElement('div'); d.className='lane'+(rec?' rec':'')+(cur===l.index?' cur':'');
-    d.innerHTML = laneSvg(l.turns, rec)+'<small>'+(rec?'Use':'Lane '+(l.index+1))+'</small>';
-    L.appendChild(d);
-  });
-}
-function drawMap(){
-  const total = ROUTE.reduce((a,s)=>a+s.len,0); let done = ROUTE.slice(0,S.i).reduce((a,s)=>a+s.len,0)+S.pos;
-  const x = 20 + 360*done/total;
-  $('mapsvg').innerHTML = '<path d="M20 70 C120 30 200 100 380 50" stroke="#2f3f66" stroke-width="10" fill="none" stroke-linecap="round"/>'+
-    '<path d="M20 70 C120 30 200 100 380 50" stroke="#2bd48a" stroke-width="4" fill="none" stroke-dasharray="'+(360*done/total*1.05)+' 999"/>'+
-    '<circle cx="'+x+'" cy="'+(60+Math.sin(done/total*6)*(-8))+'" r="7" fill="#ffb020"/>';
-}
-function tick(){
-  const now = performance.now(), dt = Math.min(0.5,(now-S.last)/1000); S.last = now;
-  const v = $('spd').value/3.6;
-  S.pos += v*dt;
-  const seg = ROUTE[S.i];
-  if (S.pos >= seg.len){ S.i++; S.pos = 0; if (S.i>=ROUTE.length){ stop(); $('instr').textContent='You have arrived'; $('dist').textContent='✓'; speak($('lang').value==='ar'?'وصلت إلى وجهتك':'You have arrived'); return; } }
-  render(v);
-}
-function render(v){
-  const seg = ROUTE[S.i];
-  const noise = $('noise').checked ? (Math.random()-0.5)*90 : 0; // GPS error in metres
-  const dist = Math.max(0, seg.len - S.pos + noise);
-  const acc = $('noise').checked ? 35 : 8;
-  const lang = $('lang').value;
-  let g, text;
-  if (seg.maneuver === 'roundabout'){
-    const r = E.roundaboutGuidance(seg.segment, seg.exitNumber, lang);
-    g = E.buildGuidance({ segment:seg.segment, maneuver: seg.exitNumber>=3?'right':'through', distance:dist, speed:v, gpsAccuracy:acc, currentLane:S.lane<3?S.lane:null });
-    g.maneuver = 'through'; text = r.text;
-    if (r.recommended && r.recommended.length) { g.recommended = r.recommended; g.lanes.forEach(l=>l.recommended = r.recommended.includes(l.index)); }
-  } else {
-    g = E.buildGuidance({ segment:seg.segment, maneuver:seg.maneuver, distance:dist, speed:v, gpsAccuracy:acc, currentLane:seg.segment.lanes? Math.min(S.lane, seg.segment.lanes.length-1):null });
-    text = E.instruction(g, lang);
-  }
-  const shown = E.makeStabilizer ? stab(g.recommended) : g.recommended;
-  $('dist').textContent = dist>=1000 ? (dist/1000).toFixed(1)+' km' : Math.round(dist/10)*10+' m';
-  $('road').textContent = seg.name + ' → ' + seg.next;
-  $('instr').textContent = g.show ? text : (lang==='ar'?'تابع على الطريق':'Continue on '+seg.name);
-  $('panel').classList.toggle('hidden', !g.show);
-  if (g.show){
-    drawLanes(g, shown, g.hasLanes?Math.min(S.lane,g.laneCount-1):null);
-    let info='';
-    if (g.exit){ info += '<span class="badge">'+E.PHRASES[lang].exitNum(g.exit.number)+'</span>'+(g.exit.destination?'<span class="badge">'+g.exit.destination+'</span>':'')+(g.exit.nextRoad?'<span class="badge">'+E.PHRASES[lang].thenRoad(g.exit.nextRoad)+'</span>':''); }
-    if (g.hasLanes) info += '<span class="badge">'+g.laneCount+' lanes</span>';
-    info += '<span class="badge">data: '+(g.confidence!=null?Math.round(g.confidence*100)+'%':'n/a')+'</span>';
-    $('info').innerHTML = info;
-    $('note').textContent = g.unsafe ? (lang==='ar'?'تغيير المسار الآن غير آمن':'Too late for a safe lane change. Rerouting after the exit.') : '';
-    const stage = E.stageFor(dist);
-    if (announce(text, S.i+'-'+stage)) speak(text);
-  }
-  drawMap();
-}
-function start(){ if(S.running) return; if(S.i>=ROUTE.length) reset(); S.running=true; S.last=performance.now(); S.timer=setInterval(tick,250); $('start').textContent='Pause'; if('speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance('')); }
-function stop(){ S.running=false; clearInterval(S.timer); $('start').textContent='Start drive'; }
-function reset(){ stop(); S.i=0; S.pos=0; $('instr').textContent='Press Start drive'; $('dist').textContent='--'; $('panel').classList.add('hidden'); drawMap(); }
-$('start').onclick = () => S.running ? stop() : start();
-$('reset').onclick = reset;
-drawMap();
+let wl = null;
+async function lockScreen() { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.nav) lockScreen(); });
 
-/* ---------- Live GPS + real map + offline tile saving ---------- */
-const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const CACHE = 'laneguide-v2';
-const AREAS = { dubai:[24.80,54.95,25.40,55.65], abudhabi:[24.30,54.25,24.60,54.80], sharjah:[25.20,55.30,25.50,55.65], alain:[24.05,55.60,24.35,55.95] };
-let LM=null, me=null, accC=null, watchId=null, firstFix=true, dlAbort=false;
-function ensureMap(){
-  if (LM) return true;
-  if (!window.L){ $('gpsstatus').textContent='Map library is not saved yet. Open the app once with internet, then try again.'; return false; }
-  LM = L.map('lmap',{zoomControl:false}).setView([25.2048,55.2708],11);
-  L.tileLayer(TILE,{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(LM);
-  accC = L.circle([25.2048,55.2708],{radius:0,color:'#2bd48a',weight:1,fillOpacity:.12}).addTo(LM);
-  me = L.circleMarker([25.2048,55.2708],{radius:8,color:'#fff',weight:3,fillColor:'#ffb020',fillOpacity:1}).addTo(LM);
-  return true;
+/* ---------- GPS ---------- */
+function startGps() {
+  if (!('geolocation' in navigator) || S.watch != null) return;
+  S.watch = navigator.geolocation.watchPosition(p => {
+    if (S.sim) return;
+    const c = p.coords;
+    onFix({ lat:c.latitude, lon:c.longitude, acc:c.accuracy, speed:(c.speed != null && c.speed >= 0) ? c.speed : null, heading:c.heading });
+  }, err => {
+    $('gpsstatus').textContent = err.code === 1 ? 'Location is blocked. Go to iPhone Settings > Privacy > Location Services > Safari Websites > While Using, then reload.' : 'GPS error: ' + err.message;
+    if (S.nav) $('btext').textContent = 'GPS signal lost';
+  }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
 }
-function setMode(m){
-  const live = m==='live';
-  $('mapbox').classList.toggle('live', live);
-  $('democtrl').style.display = live?'none':'grid';
-  $('offlinebox').style.display = live?'grid':'none';
-  if (live){
-    stop(); $('panel').classList.add('hidden');
-    $('instr').textContent='Live GPS on'; $('dist').textContent='--';
-    $('road').textContent='No route is loaded yet. Routing comes in the next stage.';
-    if (!ensureMap()) return;
-    setTimeout(()=>LM.invalidateSize(),50);
-    startGps();
-  } else {
-    stopGps(); reset(); $('gpsstatus').textContent='';
+let firstFix = true;
+function onFix(f) {
+  S.pos = f;
+  if (!map.hasLayer(meMarker)) { meMarker.addTo(map); accCircle.addTo(map); }
+  if (S.nav) { navUpdate(f); return; }
+  meMarker.setLatLng([f.lat, f.lon]); accCircle.setLatLng([f.lat, f.lon]); accCircle.setRadius(f.acc || 0);
+  if (firstFix) { firstFix = false; if (!S.dest) map.setView([f.lat, f.lon], 15); }
+}
+function waitFix(ms) {
+  return new Promise(res => { const t0 = Date.now(); (function chk() { if (S.pos || Date.now() - t0 > ms) res(); else setTimeout(chk, 300); })(); });
+}
+$('locate').onclick = () => { S.follow = true; startGps(); if (S.pos) map.setView([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), S.nav ? 17 : 15)); };
+
+/* ---------- search ---------- */
+function recents() { return ls.get('recents', []); }
+function addRecent(p) { const r = recents().filter(x => !(x.lat === p.lat && x.lon === p.lon)); r.unshift(p); ls.set('recents', r.slice(0, 8)); }
+function renderResults(list, note) {
+  const box = $('results'); box.classList.remove('hide');
+  if (!list.length) { box.innerHTML = '<div class="r muted">' + esc(note || 'No places found') + '</div>'; return; }
+  box.innerHTML = (note ? '<div class="r muted">' + esc(note) + '</div>' : '') + list.map((p, i) => '<div class="r" data-i="' + i + '"><b>' + esc(p.name) + '</b><small>' + esc(p.sub || '') + '</small></div>').join('');
+  box.querySelectorAll('.r[data-i]').forEach(el => el.onclick = () => pickPlace(list[+el.dataset.i]));
+}
+async function search(q) {
+  q = q.trim(); if (!q) { $('results').classList.add('hide'); return; }
+  $('results').classList.remove('hide'); $('results').innerHTML = '<div class="r muted">Searching…</div>';
+  try {
+    const u = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=ae&accept-language=' + cfg.lang + '&q=' + encodeURIComponent(q);
+    const r = await fetch(u); if (!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json();
+    renderResults(j.map(x => ({ name:x.name || x.display_name.split(',')[0], sub:x.display_name, lat:+x.lat, lon:+x.lon })));
+  } catch (e) {
+    renderResults(recents(), 'Search needs internet. ' + (recents().length ? 'Recent places:' : 'No recent places yet.'));
   }
 }
-function startGps(){
-  if (!('geolocation' in navigator)){ $('gpsstatus').textContent='This device has no GPS access in the browser.'; return; }
-  if (watchId!=null) return;
-  firstFix=true; $('gpsstatus').textContent='Waiting for GPS. Allow location when Safari asks.';
-  watchId = navigator.geolocation.watchPosition(p=>{
-    const c=p.coords, ll=[c.latitude,c.longitude];
-    me.setLatLng(ll); accC.setLatLng(ll); accC.setRadius(c.accuracy||0);
-    if (firstFix){ LM.setView(ll, Math.max(LM.getZoom(),15)); firstFix=false; } else LM.panTo(ll,{animate:true});
-    const kmh = c.speed!=null && c.speed>=0 ? Math.round(c.speed*3.6) : null;
-    $('dist').textContent = kmh!=null ? kmh+' km/h' : '--';
-    $('gpsstatus').textContent = 'GPS accuracy ±'+Math.round(c.accuracy)+' m'+(c.heading!=null&&!isNaN(c.heading)?' · heading '+Math.round(c.heading)+'°':'');
-  }, err=>{
-    $('gpsstatus').textContent = err.code===1 ? 'Location is blocked. In iPhone Settings > Privacy > Location Services > Safari Websites, choose While Using, then reload.' : 'GPS error: '+err.message;
-  }, {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
-}
-function stopGps(){ if (watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
-$('mode').onchange = () => setMode($('mode').value);
+$('sform').onsubmit = e => { e.preventDefault(); $('q').blur(); search($('q').value); };
+$('q').onfocus = () => { if (!$('q').value && recents().length) renderResults(recents(), 'Recent places'); };
+$('menubtn').onclick = () => $('menu').classList.remove('hide');
+$('mclose').onclick = () => $('menu').classList.add('hide');
 
-function lon2x(lon,z){ return Math.floor((lon+180)/360*Math.pow(2,z)); }
-function lat2y(lat,z){ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z)); }
-function tileList(b, maxZ){
-  const out=[]; for (let z=8; z<=maxZ; z++){
-    const x0=lon2x(b[1],z), x1=lon2x(b[3],z), y0=lat2y(b[2],z), y1=lat2y(b[0],z);
-    for (let x=x0;x<=x1;x++) for (let y=y0;y<=y1;y++) out.push([z,x,y]);
+function setSheet(name, sub, info, status) { $('sname').textContent = name || ''; $('ssub').textContent = sub || ''; $('sinfo').innerHTML = info || ''; $('sstatus').textContent = status || ''; $('sheet').classList.remove('hide'); }
+function pickPlace(p) {
+  $('results').classList.add('hide'); $('q').value = p.name; addRecent(p);
+  clearRoute(); S.dest = p;
+  if (destMarker) map.removeLayer(destMarker);
+  destMarker = L.marker([p.lat, p.lon], { icon:L.divIcon({ className:'', html:'<div class="pin"></div>', iconSize:[0, 0] }), interactive:false }).addTo(map);
+  map.flyTo([p.lat, p.lon], 15, { duration:.8 });
+  setSheet(p.name, p.sub, '', '');
+  $('bdir').classList.remove('hide'); $('bstart').classList.add('hide'); $('bsave').classList.add('hide');
+}
+$('bclose').onclick = () => { $('sheet').classList.add('hide'); clearRoute(); if (destMarker) { map.removeLayer(destMarker); destMarker = null; } S.dest = null; $('q').value = ''; };
+
+/* ---------- routing ---------- */
+async function fetchRoute(from, to) {
+  const u = 'https://router.project-osrm.org/route/v1/driving/' + from.lon + ',' + from.lat + ';' + to.lon + ',' + to.lat + '?overview=full&geometries=geojson&steps=true';
+  const r = await fetch(u); const j = await r.json();
+  if (j.code !== 'Ok' || !j.routes || !j.routes.length) throw new Error(j.code || 'noroute');
+  return j.routes[0];
+}
+function clearRoute() {
+  if (routeCasing) { map.removeLayer(routeCasing); routeCasing = null; }
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  S.route = S.R = S.steps = S.starts = null;
+}
+function setRoute(rt, fit) {
+  clearRoute();
+  const coords = rt.geometry.coordinates.map(c => [c[1], c[0]]);
+  S.route = rt; S.R = E.prepareRoute(coords); S.steps = rt.legs.flatMap(l => l.steps); S.starts = E.stepStarts(S.steps, S.R.total);
+  routeCasing = L.polyline(coords, { color:'#fff', weight:11, opacity:.95, lineCap:'round', interactive:false }).addTo(map);
+  routeLine = L.polyline(coords, { color:'#1a73e8', weight:7, lineCap:'round', interactive:false }).addTo(map);
+  if (fit) map.fitBounds(routeLine.getBounds(), { padding:[40, 40], paddingBottomRight:[40, 220] });
+}
+function showRouteSheet() {
+  const rt = S.route, p = S.dest;
+  setSheet(p.name, p.sub, '<b>' + fmtMin(rt.duration) + '</b> · ' + fmtDist(rt.distance), '');
+  $('bdir').classList.add('hide'); $('bstart').classList.remove('hide'); $('bsave').classList.remove('hide');
+}
+$('bdir').onclick = async () => {
+  startGps(); $('sstatus').textContent = 'Finding your location…';
+  await waitFix(15000);
+  if (!S.pos) { $('sstatus').textContent = 'Cannot find your location. Allow location access for Safari and try again.'; return; }
+  $('sstatus').textContent = 'Calculating route…';
+  try { setRoute(await fetchRoute(S.pos, S.dest), true); showRouteSheet(); }
+  catch (e) { $('sstatus').textContent = 'Could not get a route. Check your internet connection and try again.'; }
+};
+
+/* ---------- offline tiles ---------- */
+const lon2x = (lon, z) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
+const lat2y = (lat, z) => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z)); };
+function areaTiles(b, maxZ) {
+  const out = []; for (let z = 8; z <= maxZ; z++) {
+    const x0 = lon2x(b[1], z), x1 = lon2x(b[3], z), y0 = lat2y(b[2], z), y1 = lat2y(b[0], z);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push([z, x, y]);
   } return out;
 }
-async function downloadArea(){
-  if (!('caches' in window)){ $('dlstatus').textContent='This browser cannot save offline files.'; return; }
-  if (!ensureMap()) return;
-  let b;
-  if ($('area').value==='view'){ const g=LM.getBounds(); b=[g.getSouth(),g.getWest(),g.getNorth(),g.getEast()]; } else b=AREAS[$('area').value];
-  const maxZ=+$('detail').value;
-  const list=tileList(b,maxZ), LIMIT=2500;
-  if (list.length>LIMIT){ $('dlstatus').textContent='That area is too large ('+list.length+' tiles). Zoom the map in, or pick Overview.'; return; }
-  const mb=(list.length*0.02).toFixed(0);
-  if (!confirm('Save '+list.length+' map tiles (about '+mb+' MB) for offline use? This uses mobile data if you are not on Wi-Fi.')) return;
-  dlAbort=false; $('dl').disabled=true; $('dlcancel').style.display='inline-block'; $('dlbar').style.display='block'; $('dlbar').max=list.length; $('dlbar').value=0;
-  const cache=await caches.open(CACHE); let done=0, fail=0, i=0;
-  async function worker(){
-    while (!dlAbort && i<list.length){
-      const [z,x,y]=list[i++]; const url=TILE.replace('{z}',z).replace('{x}',x).replace('{y}',y);
-      try{
-        if (!(await cache.match(url))){ const r=await fetch(url,{mode:'cors'}); if (r.ok) await cache.put(url,r); else fail++; await new Promise(s=>setTimeout(s,120)); }
-      }catch(e){ fail++; }
-      done++; $('dlbar').value=done; if (done%20===0) $('dlstatus').textContent='Saving '+done+' / '+list.length+' tiles…';
+function routeTiles(R) {
+  const set = new Map();
+  for (let d = 0; d <= R.total + 100; d += 100) {
+    let i = 0; while (i < R.cum.length - 2 && R.cum[i + 1] < d) i++;
+    const a = R.pts[i], b = R.pts[Math.min(i + 1, R.pts.length - 1)], span = (R.cum[i + 1] - R.cum[i]) || 1, t = Math.min(1, Math.max(0, (d - R.cum[i]) / span));
+    const lat = a[0] + (b[0] - a[0]) * t, lon = a[1] + (b[1] - a[1]) * t;
+    for (let z = 10; z <= 16; z++) {
+      const x = lon2x(lon, z), y = lat2y(lat, z), r = z >= 14 ? 1 : 0;
+      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) set.set(z + '/' + (x + dx) + '/' + (y + dy), [z, x + dx, y + dy]);
     }
   }
-  await Promise.all([worker(),worker(),worker()]);
-  $('dl').disabled=false; $('dlcancel').style.display='none';
-  $('dlstatus').textContent = dlAbort ? 'Cancelled. '+done+' tiles saved so far.' : 'Done. '+(done-fail)+' tiles saved'+(fail?' ('+fail+' failed, try again on better signal)':'')+'. You can turn off internet and this area will still show.';
+  return Array.from(set.values());
 }
-$('dl').onclick = downloadArea;
-$('dlcancel').onclick = () => { dlAbort=true; };
-setMode('demo');
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+let dlAbort = false;
+async function cacheTiles(list, onStatus, onBar) {
+  const cache = await caches.open(CACHE); let done = 0, fail = 0, i = 0; dlAbort = false;
+  async function worker() {
+    while (!dlAbort && i < list.length) {
+      const [z, x, y] = list[i++], url = TILE.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+      try { if (!(await cache.match(url))) { const r = await fetch(url, { mode:'cors' }); if (r.ok) await cache.put(url, r); else fail++; await new Promise(s => setTimeout(s, 120)); } }
+      catch (e) { fail++; }
+      done++; onBar(done); if (done % 20 === 0) onStatus('Saving ' + done + ' / ' + list.length + ' map tiles…');
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  return { done, fail, aborted: dlAbort };
+}
+$('bsave').onclick = async () => {
+  if (!S.R || !('caches' in window)) return;
+  const list = routeTiles(S.R); if (list.length > 2500) { $('sstatus').textContent = 'This route is too long to save in one go.'; return; }
+  $('bsave').disabled = true;
+  const res = await cacheTiles(list, t => $('sstatus').textContent = t, () => {});
+  $('bsave').disabled = false;
+  $('sstatus').textContent = res.fail ? 'Saved with ' + res.fail + ' missing tiles. Try again on a better connection.' : 'Map for this route saved for offline use.';
+};
+$('dl').onclick = async () => {
+  if (!('caches' in window)) { $('dlstatus').textContent = 'This browser cannot save offline files.'; return; }
+  let b; if ($('area').value === 'view') { const g = map.getBounds(); b = [g.getSouth(), g.getWest(), g.getNorth(), g.getEast()]; } else b = AREAS[$('area').value];
+  const list = areaTiles(b, +$('detail').value);
+  if (list.length > 2500) { $('dlstatus').textContent = 'That area is too large (' + list.length + ' tiles). Zoom the map in, or pick Overview.'; return; }
+  if (!confirm('Save ' + list.length + ' map tiles (about ' + Math.round(list.length * 0.02) + ' MB) for offline use?')) return;
+  $('dl').disabled = true; $('dlcancel').classList.remove('hide'); $('dlbar').classList.remove('hide'); $('dlbar').max = list.length; $('dlbar').value = 0;
+  const res = await cacheTiles(list, t => $('dlstatus').textContent = t, n => $('dlbar').value = n);
+  $('dl').disabled = false; $('dlcancel').classList.add('hide');
+  $('dlstatus').textContent = res.aborted ? 'Cancelled. ' + res.done + ' tiles saved so far.' : 'Done. ' + (res.done - res.fail) + ' tiles saved' + (res.fail ? ' (' + res.fail + ' failed, try again)' : '') + '.';
+};
+$('dlcancel').onclick = () => { dlAbort = true; };
+
+/* ---------- navigation ---------- */
+function startNav() {
+  if (!S.R) return;
+  S.nav = true; S.arrived = false; S.said = new Set(); S.lastIdx = 0; S.along = 0; S.off = 0; S.stepIdx = -1; S.stab = E.makeStabilizer(3); S.follow = true;
+  document.body.classList.add('nav');
+  $('topbar').classList.add('hide'); $('sheet').classList.add('hide'); $('banner').classList.remove('hide'); $('navbar').classList.remove('hide');
+  try { if ('speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
+  lockScreen();
+  if (S.pos) map.setView([S.pos.lat, S.pos.lon], 17);
+  speak(cfg.lang === 'ar' ? 'بدأ التنقل' : 'Starting navigation.');
+  if (S.pos) navUpdate(S.pos);
+}
+function endNav(keepRoute) {
+  S.nav = false; document.body.classList.remove('nav'); stopSim();
+  $('banner').classList.add('hide'); $('lanepanel').classList.add('hide'); $('navbar').classList.add('hide'); $('topbar').classList.remove('hide');
+  try { if (wl) wl.release(); } catch (e) {} wl = null;
+  if (!keepRoute) { clearRoute(); if (destMarker) { map.removeLayer(destMarker); destMarker = null; } S.dest = null; $('q').value = ''; }
+}
+$('bstart').onclick = startNav;
+$('bend').onclick = () => endNav(false);
+
+function drawLanes(g, shown) {
+  $('lanes').innerHTML = g.lanes.map(l => {
+    const rec = shown.includes(l.index);
+    return '<div class="lane' + (rec ? ' rec' : '') + '">' + arrowSvg(l.turns, rec ? '#2bd48a' : '#9fb0d3', 4) + '<small>' + (rec ? (cfg.lang === 'ar' ? 'استخدم' : 'Use') : (l.index + 1)) + '</small></div>';
+  }).join('');
+}
+
+function navUpdate(f) {
+  if (S.arrived) return;
+  const R = S.R, steps = S.steps, p = [f.lat, f.lon];
+  const tol = Math.max(45, (f.acc || 10) * 1.5);
+  let sn = E.snapToRoute(R, p, S.lastIdx, 80);
+  if (!sn || sn.dist > tol) {
+    const g = E.snapToRoute(R, p, 0, null);
+    if (g && g.dist <= tol && g.along >= S.along - 30) sn = g; else sn = null;
+  }
+  let ll = p;
+  if (sn) {
+    S.off = 0; S.lastIdx = sn.idx; S.along = Math.max(S.along - 20, sn.along);
+    const a = R.pts[sn.idx], b = R.pts[sn.idx + 1] || a; ll = [a[0] + (b[0] - a[0]) * sn.t, a[1] + (b[1] - a[1]) * sn.t];
+  } else {
+    S.off++;
+    if (S.off >= 4) tryReroute(f);
+  }
+  meMarker.setLatLng(ll); accCircle.setLatLng(ll); accCircle.setRadius(f.acc || 0);
+  if (S.follow) map.panTo(ll, { animate:true, duration:.5 });
+  if (f.speed != null) S.v = S.v * 0.7 + f.speed * 0.3;
+
+  const along = S.along, remaining = Math.max(0, R.total - along);
+  let cur = 0; while (cur + 1 < steps.length && S.starts[cur + 1] <= along) cur++;
+  const nxt = Math.min(cur + 1, steps.length - 1), step = steps[nxt];
+  const distNext = Math.max(0, S.starts[nxt] - along);
+  if (nxt !== S.stepIdx) { S.stepIdx = nxt; S.stab = E.makeStabilizer(3); }
+  const mv = E.maneuverFromOsrm(step.maneuver);
+
+  $('bdist').textContent = fmtDist(distNext);
+  $('btext').textContent = E.describeStep(step, cfg.lang, true);
+  $('btext').dir = cfg.lang === 'ar' ? 'rtl' : 'ltr';
+  $('broad').textContent = (steps[cur].name || '') + (step.name && step.name !== steps[cur].name ? '  →  ' + step.name : '');
+  $('barrow').innerHTML = mv === 'arrive' ? '<div style="font-size:44px;line-height:62px">⚑</div>' : arrowSvg([ARROW[mv] ? mv : 'through'], '#fff', 5);
+  $('eta').textContent = new Date(Date.now() + S.route.duration * (remaining / (R.total || 1)) * 1000).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  $('rem').textContent = fmtDist(remaining);
+  $('spd').textContent = f.speed != null ? Math.round(f.speed * 3.6) : '--';
+
+  // Lane guidance for the upcoming manoeuvre (never invented: needs lane data from the map).
+  const lanes = E.lanesFromOsrm(step.intersections && step.intersections[0]);
+  const g = E.buildGuidance({ segment:{ id:'s' + nxt, lanes, confidence:.7 }, maneuver:mv, distance:distNext, speed:S.v, gpsAccuracy:f.acc || 10, currentLane:null });
+  const showLanes = g.hasLanes && g.show && mv !== 'arrive';
+  $('lanepanel').classList.toggle('hide', !showLanes);
+  if (showLanes) {
+    const shown = S.stab(g.recommended);
+    drawLanes(g, shown);
+    $('lanemeta').textContent = (cfg.lang === 'ar' ? 'المسارات: ' : 'Lanes: ') + g.laneCount + (step.name ? ' · ' + step.name : '');
+  }
+  $('lanepanel').style.top = 'calc(env(safe-area-inset-top) + ' + (document.getElementById('banner').offsetHeight + 14) + 'px)';
+
+  // Voice (limited, no repeats)
+  const P = E.PHRASES[cfg.lang] || E.PHRASES.en, stage = E.stageFor(distNext);
+  if (mv === 'arrive') { if (distNext < 60 || remaining < 40) { speak(E.describeStep(step, cfg.lang, true) + '.'); S.arrived = true; setTimeout(() => endNav(false), 5000); } return; }
+  const say = (t, key) => { if (S.said.has(key)) return; S.said.add(key); if (announce(t, key, Date.now())) speak(t); };
+  if (distNext < 45) say(E.describeStep(step, cfg.lang, true) + '.', nxt + '-now');
+  else if (stage > 0) {
+    let t = g.hasLanes && g.show ? E.instruction(g, cfg.lang) : P.noLane(P.dist(distNext), E.describeStep(step, cfg.lang));
+    if (mv === 'roundabout') t += ' ' + P.roundabout(step.maneuver.exit || 1);
+    say(t, nxt + '-' + stage);
+  }
+}
+
+async function tryReroute(f) {
+  const now = Date.now();
+  if (S.sim || S.rerouting || now - S.lastReroute < 8000 || !S.dest) return;
+  if (!navigator.onLine) { $('btext').textContent = cfg.lang === 'ar' ? 'خارج المسار. لا يوجد إنترنت لإعادة التوجيه' : 'Off route. No internet to reroute.'; return; }
+  S.rerouting = true; S.lastReroute = now;
+  speak(cfg.lang === 'ar' ? 'جارٍ إعادة التوجيه' : 'Rerouting.');
+  try { const rt = await fetchRoute(f, S.dest); setRoute(rt, false); S.lastIdx = 0; S.along = 0; S.off = 0; S.stepIdx = -1; } catch (e) {}
+  S.rerouting = false;
+}
+
+/* ---------- demo drive (no network, simulated GPS along a sample route with lane data) ---------- */
+function demoRoute() {
+  const lat0 = 25.2000, lon0 = 55.2700, kLon = 111320 * Math.cos(lat0 * Math.PI / 180);
+  const ll = (x, y) => [lat0 + y / 111320, lon0 + x / kLon];
+  const W = [[0, 0], [0, 3000], [1060, 4060], [2260, 4060], [2260, 3260]], pts = [];
+  for (let i = 0; i < W.length - 1; i++) { const [x0, y0] = W[i], [x1, y1] = W[i + 1], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 40); for (let j = 0; j < n; j++) pts.push(ll(x0 + (x1 - x0) * j / n, y0 + (y1 - y0) * j / n)); }
+  pts.push(ll(W[4][0], W[4][1]));
+  const lanes4 = [{ indications:['straight'], valid:false }, { indications:['straight'], valid:false }, { indications:['straight', 'right'], valid:true }, { indications:['right'], valid:true }];
+  const lanesR = [{ indications:['left', 'straight'], valid:false }, { indications:['straight'], valid:false }, { indications:['straight', 'right'], valid:true }];
+  const st = (type, modifier, name, distance, wp, lanes, exit) => ({ maneuver:{ type, modifier, exit }, name, distance, duration:distance / 22, intersections:[{ location:[ll(wp[0], wp[1])[1], ll(wp[0], wp[1])[0]], lanes }] });
+  const steps = [st('depart', '', 'Sheikh Zayed Rd', 3000, W[0]), st('off ramp', 'slight right', 'Airport Rd', 1499, W[1], lanes4),
+    st('roundabout', 'right', 'Terminal Rd', 1200, W[2], lanesR, 3), st('turn', 'right', 'Terminal 3 Access', 800, W[3]), st('arrive', '', '', 0, W[4])];
+  return { distance:6499, duration:steps.reduce((a, s) => a + s.duration, 0), geometry:{ coordinates:pts.map(p => [p[1], p[0]]) }, legs:[{ steps }] };
+}
+function stopSim() { S.sim = false; if (S.simTimer) clearInterval(S.simTimer); S.simTimer = null; }
+function startDemo() {
+  $('menu').classList.add('hide'); if (S.nav) endNav(false); stopSim();
+  const rt = demoRoute(), end = rt.geometry.coordinates[rt.geometry.coordinates.length - 1];
+  S.dest = { name:'Demo: Airport Terminal 3', sub:'Sample route with lane data', lat:end[1], lon:end[0] };
+  if (destMarker) map.removeLayer(destMarker);
+  setRoute(rt, true); S.sim = true; S.simS = 0; S.pos = null;
+  const R = S.R; let first = true;
+  const at = s => { let i = 0; while (i < R.cum.length - 2 && R.cum[i + 1] < s) i++; const t = (s - R.cum[i]) / ((R.cum[i + 1] - R.cum[i]) || 1), a = R.pts[i], b = R.pts[i + 1]; return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+  const tick = () => {
+    const v = $('dspd').value / 3.6, noise = $('noise').checked ? 30 : 0;
+    S.simS = Math.min(R.total, S.simS + v * 0.5);
+    const p = at(S.simS), jitter = () => (Math.random() - .5) * noise / 111320 * 2;
+    onFix({ lat:p[0] + jitter(), lon:p[1] + jitter(), acc:noise ? 30 : 8, speed:v, heading:null });
+    if (first) { first = false; }
+  };
+  const p0 = at(0); S.pos = { lat:p0[0], lon:p0[1], acc:8, speed:0 }; onFix(S.pos);
+  startNav(); S.simTimer = setInterval(tick, 500);
+}
+$('demo').onclick = startDemo;
+$('dspd').oninput = () => $('dspdv').textContent = $('dspd').value + ' km/h';
+
+/* ---------- menu / settings ---------- */
+$('lang').value = cfg.lang;
+$('lang').onchange = () => { cfg.lang = $('lang').value; ls.set('lang', cfg.lang); };
+$('voice').textContent = 'Voice: ' + (cfg.voice ? 'on' : 'off');
+$('voice').onclick = () => { cfg.voice = !cfg.voice; ls.set('voice', cfg.voice); $('voice').textContent = 'Voice: ' + (cfg.voice ? 'on' : 'off'); if (!cfg.voice && 'speechSynthesis' in window) speechSynthesis.cancel(); };
+$('clearrec').onclick = () => { ls.set('recents', []); $('clearrec').textContent = 'Cleared'; };
+
+/* ---------- start ---------- */
+startGps();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
