@@ -10,6 +10,8 @@
 <meta name="theme-color" content="#0b1220">
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Lane Guide</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 :root{--bg:#0b1220;--card:#141d30;--ink:#eef3ff;--mute:#8da0c4;--hi:#2bd48a;--neutral:#3a4764;--warn:#ffb020;--bad:#ff5d5d}
 *{box-sizing:border-box}
@@ -20,6 +22,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px -apple-system,syst
 .road{color:var(--mute);font-size:13px;margin-top:2px}
 .map{height:120px;margin-top:10px;border-radius:16px;background:linear-gradient(#10192c,#0d1526);position:relative;overflow:hidden}
 .map svg{width:100%;height:100%}
+.map.live{height:260px}.map.live svg{display:none}
+#lmap{position:absolute;inset:0;display:none;background:#0d1526}
+.map.live #lmap{display:block}
+.leaflet-container{font:12px system-ui}
+.status{color:var(--mute);font-size:13px;line-height:1.4}
+progress{width:100%}
 .panel{background:var(--card);border-radius:16px;margin-top:10px;padding:12px;min-height:150px}
 .panel.hidden .lanes{opacity:.25}
 .lanes{display:flex;gap:6px;justify-content:center;transition:opacity .3s}
@@ -41,9 +49,21 @@ input[type=range]{flex:1}
 </head>
 <body>
 <div class="top"><div class="big" id="dist">--</div><div><div class="instr" id="instr">Press Start drive</div><div class="road" id="road"></div></div></div>
-<div class="map"><svg viewBox="0 0 400 120" id="mapsvg"></svg></div>
+<div class="map" id="mapbox"><svg viewBox="0 0 400 120" id="mapsvg"></svg><div id="lmap"></div></div>
 <div class="panel hidden" id="panel"><div class="lanes" id="lanes"></div><div id="info"></div><div class="note" id="note"></div></div>
 <div class="ctrl">
+  <div class="row"><b>Mode</b><select id="mode"><option value="demo">Demo drive</option><option value="live">Live GPS + map</option></select></div>
+  <div class="status" id="gpsstatus"></div>
+</div>
+<div class="ctrl" id="offlinebox">
+  <div class="row"><b>Offline map</b></div>
+  <div class="row"><select id="area"><option value="view">Current map view</option><option value="dubai">Dubai</option><option value="abudhabi">Abu Dhabi city</option><option value="sharjah">Sharjah + Ajman</option><option value="alain">Al Ain</option></select>
+    <select id="detail"><option value="12">Overview (zoom 8–12)</option><option value="14">Detailed (zoom 8–14)</option></select></div>
+  <div class="row"><button id="dl">Save area for offline</button><button id="dlcancel" style="display:none">Cancel</button></div>
+  <progress id="dlbar" value="0" max="1" style="display:none"></progress>
+  <div class="status" id="dlstatus">Open Live GPS mode while online, then save the areas you drive in. Saved maps work with no internet.</div>
+</div>
+<div class="ctrl" id="democtrl">
   <div class="row"><button class="primary" id="start">Start drive</button><button id="reset">Reset</button>
     <select id="lang"><option value="en">English</option><option value="ar">العربية</option></select>
     <button id="voice">Voice: on</button></div>
@@ -337,6 +357,91 @@ function reset(){ stop(); S.i=0; S.pos=0; $('instr').textContent='Press Start dr
 $('start').onclick = () => S.running ? stop() : start();
 $('reset').onclick = reset;
 drawMap();
+
+/* ---------- Live GPS + real map + offline tile saving ---------- */
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const CACHE = 'laneguide-v2';
+const AREAS = { dubai:[24.80,54.95,25.40,55.65], abudhabi:[24.30,54.25,24.60,54.80], sharjah:[25.20,55.30,25.50,55.65], alain:[24.05,55.60,24.35,55.95] };
+let LM=null, me=null, accC=null, watchId=null, firstFix=true, dlAbort=false;
+function ensureMap(){
+  if (LM) return true;
+  if (!window.L){ $('gpsstatus').textContent='Map library is not saved yet. Open the app once with internet, then try again.'; return false; }
+  LM = L.map('lmap',{zoomControl:false}).setView([25.2048,55.2708],11);
+  L.tileLayer(TILE,{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(LM);
+  accC = L.circle([25.2048,55.2708],{radius:0,color:'#2bd48a',weight:1,fillOpacity:.12}).addTo(LM);
+  me = L.circleMarker([25.2048,55.2708],{radius:8,color:'#fff',weight:3,fillColor:'#ffb020',fillOpacity:1}).addTo(LM);
+  return true;
+}
+function setMode(m){
+  const live = m==='live';
+  $('mapbox').classList.toggle('live', live);
+  $('democtrl').style.display = live?'none':'grid';
+  $('offlinebox').style.display = live?'grid':'none';
+  if (live){
+    stop(); $('panel').classList.add('hidden');
+    $('instr').textContent='Live GPS on'; $('dist').textContent='--';
+    $('road').textContent='No route is loaded yet. Routing comes in the next stage.';
+    if (!ensureMap()) return;
+    setTimeout(()=>LM.invalidateSize(),50);
+    startGps();
+  } else {
+    stopGps(); reset(); $('gpsstatus').textContent='';
+  }
+}
+function startGps(){
+  if (!('geolocation' in navigator)){ $('gpsstatus').textContent='This device has no GPS access in the browser.'; return; }
+  if (watchId!=null) return;
+  firstFix=true; $('gpsstatus').textContent='Waiting for GPS. Allow location when Safari asks.';
+  watchId = navigator.geolocation.watchPosition(p=>{
+    const c=p.coords, ll=[c.latitude,c.longitude];
+    me.setLatLng(ll); accC.setLatLng(ll); accC.setRadius(c.accuracy||0);
+    if (firstFix){ LM.setView(ll, Math.max(LM.getZoom(),15)); firstFix=false; } else LM.panTo(ll,{animate:true});
+    const kmh = c.speed!=null && c.speed>=0 ? Math.round(c.speed*3.6) : null;
+    $('dist').textContent = kmh!=null ? kmh+' km/h' : '--';
+    $('gpsstatus').textContent = 'GPS accuracy ±'+Math.round(c.accuracy)+' m'+(c.heading!=null&&!isNaN(c.heading)?' · heading '+Math.round(c.heading)+'°':'');
+  }, err=>{
+    $('gpsstatus').textContent = err.code===1 ? 'Location is blocked. In iPhone Settings > Privacy > Location Services > Safari Websites, choose While Using, then reload.' : 'GPS error: '+err.message;
+  }, {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+}
+function stopGps(){ if (watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
+$('mode').onchange = () => setMode($('mode').value);
+
+function lon2x(lon,z){ return Math.floor((lon+180)/360*Math.pow(2,z)); }
+function lat2y(lat,z){ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z)); }
+function tileList(b, maxZ){
+  const out=[]; for (let z=8; z<=maxZ; z++){
+    const x0=lon2x(b[1],z), x1=lon2x(b[3],z), y0=lat2y(b[2],z), y1=lat2y(b[0],z);
+    for (let x=x0;x<=x1;x++) for (let y=y0;y<=y1;y++) out.push([z,x,y]);
+  } return out;
+}
+async function downloadArea(){
+  if (!('caches' in window)){ $('dlstatus').textContent='This browser cannot save offline files.'; return; }
+  if (!ensureMap()) return;
+  let b;
+  if ($('area').value==='view'){ const g=LM.getBounds(); b=[g.getSouth(),g.getWest(),g.getNorth(),g.getEast()]; } else b=AREAS[$('area').value];
+  const maxZ=+$('detail').value;
+  const list=tileList(b,maxZ), LIMIT=2500;
+  if (list.length>LIMIT){ $('dlstatus').textContent='That area is too large ('+list.length+' tiles). Zoom the map in, or pick Overview.'; return; }
+  const mb=(list.length*0.02).toFixed(0);
+  if (!confirm('Save '+list.length+' map tiles (about '+mb+' MB) for offline use? This uses mobile data if you are not on Wi-Fi.')) return;
+  dlAbort=false; $('dl').disabled=true; $('dlcancel').style.display='inline-block'; $('dlbar').style.display='block'; $('dlbar').max=list.length; $('dlbar').value=0;
+  const cache=await caches.open(CACHE); let done=0, fail=0, i=0;
+  async function worker(){
+    while (!dlAbort && i<list.length){
+      const [z,x,y]=list[i++]; const url=TILE.replace('{z}',z).replace('{x}',x).replace('{y}',y);
+      try{
+        if (!(await cache.match(url))){ const r=await fetch(url,{mode:'cors'}); if (r.ok) await cache.put(url,r); else fail++; await new Promise(s=>setTimeout(s,120)); }
+      }catch(e){ fail++; }
+      done++; $('dlbar').value=done; if (done%20===0) $('dlstatus').textContent='Saving '+done+' / '+list.length+' tiles…';
+    }
+  }
+  await Promise.all([worker(),worker(),worker()]);
+  $('dl').disabled=false; $('dlcancel').style.display='none';
+  $('dlstatus').textContent = dlAbort ? 'Cancelled. '+done+' tiles saved so far.' : 'Done. '+(done-fail)+' tiles saved'+(fail?' ('+fail+' failed, try again on better signal)':'')+'. You can turn off internet and this area will still show.';
+}
+$('dl').onclick = downloadArea;
+$('dlcancel').onclick = () => { dlAbort=true; };
+setMode('demo');
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
