@@ -66,6 +66,10 @@ body.nav #menubtn,body.nav #voicebtn{display:none}
 #sname{font-size:22px;font-weight:700;padding-right:44px;line-height:1.2}
 #scat{color:var(--mute);font-size:15px;margin-top:4px}
 #ssub{color:var(--mute);font-size:14px;margin-top:2px;max-height:38px;overflow:hidden}
+#sdet{margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow:auto}
+#sdet .row{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border-radius:14px;padding:10px 12px;font-size:15px;line-height:1.35;word-break:break-word}
+#sdet .row i{font-style:normal;flex:0 0 22px;text-align:center}#sdet .row.ar{direction:rtl;text-align:right}
+#sdet a{color:var(--blue);text-decoration:none}#sdet .tap{cursor:pointer}#sdet small{color:var(--mute);display:block}
 #sinfo{margin-top:8px;font-size:18px}#sinfo b{color:var(--green)}
 #swarn{margin-top:6px;font-size:14px;color:var(--warn)}
 #sstatus{color:var(--mute);font-size:14px;margin-top:6px;min-height:18px}
@@ -141,10 +145,10 @@ progress{width:100%}
 <div id="card" class="panel hide">
   <button id="bclose" aria-label="Close">✕</button>
   <div id="sname"></div><div id="scat"></div><div id="ssub"></div>
-  <div id="sinfo"></div><div id="swarn"></div><div id="sstatus"></div>
+  <div id="sinfo"></div><div id="sdet"></div><div id="swarn"></div><div id="sstatus"></div>
   <div class="btns">
     <button class="btn p" id="bdir">Directions</button><button class="btn g hide" id="bstart">Start</button>
-    <button class="btn" id="bsaveplace">☆ Save</button><button class="btn" id="bshare">Share</button>
+    <a class="btn hide" id="bcall" style="text-decoration:none">📞 Call</a><button class="btn" id="bsaveplace">☆ Save</button><button class="btn" id="bshare">Share</button>
     <button class="btn hide" id="bsave">Save map along route</button><button class="btn d hide" id="bremove">Remove</button>
   </div>
 </div>
@@ -636,10 +640,26 @@ progress{width:100%}
       if (cat.c === 'road') { const rk = normText(name) + '|' + Math.round(lat / 0.004) + ',' + Math.round(lon / 0.004); if (seenRoad.has(rk)) return; seenRoad.add(rk); }
       const addr = [t['addr:housenumber'], t['addr:street'], t['addr:suburb'] || t['addr:city']].filter(Boolean).join(', ');
       const extra = ['road', 'place', 'building'].indexOf(cat.c) < 0 ? cat.cl : '';
-      out.push({ id: el.type.charAt(0) + el.id, n: name, a: alt, c: cat.c, cl: cat.cl, la: r5(lat), lo: r5(lon), ad: addr, k: normText([name, alt, en, ar, t.brand, extra].filter(Boolean).join(' ')) });
+      const rec = { id: el.type.charAt(0) + el.id, n: name, a: alt, c: cat.c, cl: cat.cl, la: r5(lat), lo: r5(lon), ad: addr, k: normText([name, alt, en, ar, t.brand, extra].filter(Boolean).join(' ')) };
+      const ph = t.phone || t['contact:phone'] || t.mobile || t['contact:mobile'], web = t.website || t['contact:website'] || t.url, oh = t.opening_hours;
+      const aar = [t['addr:housenumber'], t['addr:street:ar'], t['addr:suburb:ar'] || t['addr:city:ar']].filter(Boolean).join('، ');
+      if (ph) rec.ph = String(ph).split(';')[0].trim(); if (web) rec.web = String(web).trim(); if (oh && String(oh).length < 120) rec.oh = String(oh);
+      if (aar && /[\u0600-\u06FF]/.test(aar)) rec.aa = aar;
+      out.push(rec);
     });
     return out;
   }
+  // Open Location Code (Plus Code), full 10-digit code, computed on the phone with no internet.
+  const OLC = '23456789CFGHJMPQRVWX';
+  function plusCode(lat, lon) {
+    let la = Math.floor((Math.min(90 - 1e-9, Math.max(-90, lat)) + 90) * 8000 + 1e-6), lo = Math.floor(((((lon + 180) % 360) + 360) % 360) * 8000 + 1e-6), out = '';
+    for (let i = 0; i < 5; i++) { const d = Math.pow(20, 4 - i); out += OLC[Math.floor(la / d) % 20] + OLC[Math.floor(lo / d) % 20]; }
+    return out.slice(0, 8) + '+' + out.slice(8);
+  }
+  function shortPlusCode(lat, lon, locality) { const c = plusCode(lat, lon); return locality ? c.slice(4) + ' ' + locality : c; }
+  function telHref(ph) { return 'tel:' + String(ph || '').replace(/[^\d+]/g, ''); }
+  function webHref(w) { w = String(w || '').trim(); if (!w) return ''; return /^https?:\/\//i.test(w) ? w : 'https://' + w; }
+  function webLabel(w) { return String(w || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, ''); }
   function parseAlerts(json) {
     const cams = [], clos = [];
     ((json && json.elements) || []).forEach(el => {
@@ -797,7 +817,7 @@ progress{width:100%}
     lanesFromOsrm, maneuverFromOsrm, describeStep, hav, prepareRoute, snapToRoute, stepStarts, MOVES, parseOsmTurnLanes, recommendedLanes, warningDistance, lanesToCross, buildGuidance, laneWords,
     instruction, roundaboutGuidance, makeAnnouncer, stageFor, makeStabilizer, trafficInfo, PHRASES,
     bearing, angDiff, segDist, routeBearingAt, normText, searchPlaces, parseMaxspeed, placeCategory, parsePlaces, parseAlerts, parseRoads, overpassQueries, cellsFor,
-    makePointIndex, makeRoadIndex, lookahead, itemsAhead, itemsAlongRoute, makeOnce, alertKind, alertText, upsertSaved, KIND_LABEL };
+    plusCode, shortPlusCode, telHref, webHref, webLabel, makePointIndex, makeRoadIndex, lookahead, itemsAhead, itemsAlongRoute, makeOnce, alertKind, alertText, upsertSaved, KIND_LABEL };
 });
 </script>
 <script>
@@ -1054,7 +1074,7 @@ $('where').onclick = () => openSearch({});
 
 /* ---------- search (saved places and offline places first, internet results added) ---------- */
 const SP = { open:false, mode:{}, list:[], seq:0, timer:null };
-function placeFromRecord(r) { return { name:r.n, sub:[r.a, r.ad].filter(Boolean).join(' · '), cl:r.cl, c:r.c, lat:r.la, lon:r.lo }; }
+function placeFromRecord(r) { return { name:r.n, sub:[r.a, r.ad].filter(Boolean).join(' · '), cl:r.cl, c:r.c, lat:r.la, lon:r.lo, osm:r.id, ph:r.ph, web:r.web, oh:r.oh, addrAr:r.aa, addr:r.ad }; }
 function iconOf(p) {
   const s = (p.cl || '').toLowerCase();
   if (p.src === 'saved') return p.icon || '⭐'; if (p.src === 'recent') return '🕘';
@@ -1141,15 +1161,24 @@ function pointPlace(lat, lon) {
   return { name:road ? 'Near ' + road : (cfg.lang === 'ar' ? 'موقع محدد' : 'Dropped pin'), sub:lat.toFixed(5) + ', ' + lon.toFixed(5), lat, lon, drop:true };
 }
 async function reverseInfo(p) {
-  if (navigator.onLine === false) return;
-  try {
-    const r = await fetchT('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=' + cfg.lang + '&lat=' + p.lat + '&lon=' + p.lon, {}, 5000);
-    if (!r.ok) return; const j = await r.json(), a = j.address || {};
-    if (S.dest !== p) return;
+  if (navigator.onLine === false || p.rev) return; p.rev = 1;
+  const q = lang => (p.osm ? 'lookup?osm_ids=' + p.osm.charAt(0).toUpperCase() + p.osm.slice(1) : 'reverse?zoom=18&lat=' + p.lat + '&lon=' + p.lon) + '&format=jsonv2&addressdetails=1&extratags=1&accept-language=' + lang;
+  const get = async lang => { try { const r = await fetchT('https://nominatim.openstreetmap.org/' + q(lang), {}, 6000); if (!r.ok) return null; let j = await r.json(); if (Array.isArray(j)) j = j[0]; return j && !j.error ? j : null; } catch (e) { return null; } };
+  const [en, ar] = await Promise.all([get('en'), get('ar')]);
+  if (S.dest !== p || (!en && !ar)) return;
+  const j = en || ar, a = j.address || {}, x = j.extratags || {};
+  if (p.drop) {
     const title = j.name || a.road || (j.display_name || '').split(',')[0];
-    if (title) p.name = title; if (j.display_name) p.sub = j.display_name; if (j.type && j.type !== 'yes') p.cl = j.type.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
-    renderCard();
-  } catch (e) {}
+    if (title) p.name = (cfg.lang === 'ar' && ar && ar.name) ? ar.name : title; p.sub = ((cfg.lang === 'ar' && ar) ? ar : j).display_name || p.sub;
+    if (j.type && j.type !== 'yes') p.cl = j.type.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+    p.drop = false; p.dropped = true;
+  }
+  if (en && en.display_name) p.addr = en.display_name;
+  if (ar && ar.display_name && /[\u0600-\u06FF]/.test(ar.display_name)) p.addrAr = ar.display_name;
+  p.loc = a.city || a.town || a.village || a.suburb || a.state || p.loc;
+  const ph = x.phone || x['contact:phone'] || x.mobile, web = x.website || x['contact:website'] || x.url;
+  if (ph && !p.ph) p.ph = String(ph).split(';')[0].trim(); if (web && !p.web) p.web = web; if (x.opening_hours && !p.oh) p.oh = x.opening_hours;
+  renderCard();
 }
 map.on('click', async e => {
   if (S.nav || SP.open || !$('menu').classList.contains('hide') || !$('modal').classList.contains('hide')) return;
@@ -1159,7 +1188,7 @@ map.on('click', async e => {
     if (p.drop) { S.dest = p; await reverseInfo(p); S.dest = null; }
     if (k === 'any') openSaveChooser(p); else savePlaceAs(k, p); return;
   }
-  pickPlace(p, { fly:true }); if (p.drop) reverseInfo(p);
+  pickPlace(p, { fly:true });
 });
 
 /* ---------- place card ---------- */
@@ -1170,15 +1199,33 @@ function renderCard(status) {
   $('sname').textContent = p.name;
   const away = S.pos ? fmtDist(E.hav([S.pos.lat, S.pos.lon], [p.lat, p.lon])) + (cfg.lang === 'ar' ? ' بعيد' : ' away') : '';
   $('scat').textContent = [p.cl, away].filter(Boolean).join(' · '); $('ssub').textContent = p.sub || '';
+  renderDetails(p);
   if (status != null) $('sstatus').textContent = status;
+}
+function nearLocality(lat, lon) {
+  if (!D.pIdx) return ''; const c = D.pIdx.query(lat, lon, 9000).filter(x => x.item.c === 'place'); return c.length ? c[0].item.n : '';
+}
+function renderDetails(p) {
+  const rows = [], ar = cfg.lang === 'ar';
+  const addr = p.addr || (p.drop ? '' : p.sub);
+  if (addr) rows.push('<div class="row"><i>📍</i><div>' + esc(addr) + '</div></div>');
+  if (p.addrAr && p.addrAr !== addr) rows.push('<div class="row ar"><i>📍</i><div>' + esc(p.addrAr) + '</div></div>');
+  const loc = p.loc || nearLocality(p.lat, p.lon), code = E.shortPlusCode(p.lat, p.lon, loc);
+  rows.push('<div class="row tap" data-copy="' + esc(code) + '"><i>🔢</i><div>' + esc(code) + '<small>' + (ar ? 'رمز الموقع · المس للنسخ' : 'Plus Code · tap to copy') + '</small></div></div>');
+  if (p.ph) rows.push('<div class="row"><i>📞</i><div><a href="' + esc(E.telHref(p.ph)) + '">' + esc(p.ph) + '</a></div></div>');
+  if (p.web) rows.push('<div class="row"><i>🌐</i><div><a href="' + esc(E.webHref(p.web)) + '" target="_blank" rel="noopener">' + esc(E.webLabel(p.web)) + '</a></div></div>');
+  if (p.oh) rows.push('<div class="row"><i>🕒</i><div>' + esc(p.oh) + '</div></div>');
+  const box = $('sdet'); box.innerHTML = rows.join('');
+  box.querySelectorAll('[data-copy]').forEach(el => el.onclick = async () => { try { await navigator.clipboard.writeText(el.dataset.copy); toast('Copied'); } catch (e) { toast(el.dataset.copy); } });
+  $('bcall').classList.toggle('hide', !p.ph); if (p.ph) $('bcall').href = E.telHref(p.ph);
 }
 function pickPlace(p, opts) {
   opts = opts || {}; clearRoute(); C.info = null; S.dest = p; if (opts.recent !== false && opts.auto) addRecent(p);
   if (destMarker) map.removeLayer(destMarker);
   destMarker = L.marker([p.lat, p.lon], { icon:L.divIcon({ className:'', html:'<div class="pin"></div>', iconSize:[0, 0] }), interactive:false }).addTo(map);
   if (opts.fly !== false) map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 15), { duration:.6 });
-  $('sinfo').innerHTML = ''; $('swarn').textContent = ''; renderCard('');
-  setButtons({ bdir:1, bsaveplace:1, bshare:1 }); ui('card');
+  $('sinfo').innerHTML = ''; $('swarn').textContent = ''; setButtons({ bdir:1, bsaveplace:1, bshare:1 }); renderCard(''); ui('card');
+  if (opts.reverse !== false && !opts.auto) reverseInfo(p);
   if (opts.auto) $('bdir').onclick();
 }
 function openInfo(it) {
@@ -1187,7 +1234,7 @@ function openInfo(it) {
   const kind = E.alertKind(it), P = E.PHRASES[cfg.lang] || E.PHRASES.en;
   const titles = { cam_speed:'Speed camera', cam_light:'Traffic light camera', cam_avg:'Average speed zone', closure:'Road closed or under construction', hazard:'Hazard' };
   $('sname').textContent = titles[kind]; $('scat').textContent = it.t === 'rep' ? 'Added by you. Only you can see it.' : 'From OpenStreetMap data saved on this phone';
-  $('ssub').textContent = [it.nm, it.lim ? 'Limit ' + it.lim + ' km/h' : ''].filter(Boolean).join(' · '); $('sinfo').innerHTML = ''; $('swarn').textContent = ''; $('sstatus').textContent = '';
+  $('ssub').textContent = [it.nm, it.lim ? 'Limit ' + it.lim + ' km/h' : ''].filter(Boolean).join(' · '); $('sinfo').innerHTML = ''; $('sdet').innerHTML = ''; $('swarn').textContent = ''; $('sstatus').textContent = '';
   setButtons({ bremove:it.t === 'rep' }); ui('card');
 }
 $('bclose').onclick = () => { clearRoute(); if (destMarker) { map.removeLayer(destMarker); destMarker = null; } S.dest = null; C.info = null; ui('home'); };
